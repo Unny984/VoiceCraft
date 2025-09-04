@@ -11,6 +11,8 @@
              mc:Ignorable="d">
     <Panel>
         <ListBox Background="Transparent"
+                 HorizontalAlignment="Stretch"
+                 VerticalAlignment="Stretch"
                  ItemsSource="{Binding ServersSettings.Servers}"
                  SelectedItem="{Binding SelectedServer}"
                  SelectionMode="Single">

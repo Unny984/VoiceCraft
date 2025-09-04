@@ -16,6 +16,7 @@
     <Style Selector="Border.card">
         <Setter Property="CornerRadius" Value="5" />
         <Setter Property="Background" Value="{DynamicResource BackgroundBrush}" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
     </Style>
     
     <Style Selector="Border.tag">

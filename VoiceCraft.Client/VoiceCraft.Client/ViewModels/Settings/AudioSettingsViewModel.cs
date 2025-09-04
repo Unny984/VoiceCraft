@@ -8,6 +8,7 @@ using VoiceCraft.Client.Services;
 using VoiceCraft.Core;
 using VoiceCraft.Core.Audio;
 using VoiceCraft.Core.Interfaces;
+using MauiPermissions = Microsoft.Maui.ApplicationModel.Permissions;
 
 namespace VoiceCraft.Client.ViewModels.Settings;
 
@@ -60,7 +61,7 @@ public partial class AudioSettingsViewModel : ViewModelBase, IDisposable
     {
         try
         {
-            if (await _permissionsService.CheckAndRequestPermission<Permissions.Microphone>(
+            if (await _permissionsService.CheckAndRequestPermission<MauiPermissions.Microphone>(
                     "VoiceCraft requires the microphone permission to be granted in order to test recording!") !=
                 PermissionStatus.Granted)
                 throw new InvalidOperationException("Could not create recorder, Microphone permission not granted.");

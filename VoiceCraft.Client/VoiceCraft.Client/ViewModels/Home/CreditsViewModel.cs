@@ -54,6 +54,23 @@ public partial class CreditsViewModel : ViewModelBase
     {
         AppVersion = Locales.Locales.Credits_AppVersion.Replace("{version}", Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "N.A.");
         Version = Locales.Locales.Credits_Version.Replace("{version}", VoiceCraftClient.Version.ToString());
-        Codec = Locales.Locales.Credits_Codec.Replace("{version}", OpusInfo.Version());
+        
+        // Handle platforms where Opus native library is not available
+        string opusVersion;
+        try
+        {
+            opusVersion = OpusInfo.Version();
+        }
+        catch (DllNotFoundException)
+        {
+            // Opus native library not available on this platform (e.g., iOS)
+            opusVersion = "Not Available (Native Audio)";
+        }
+        catch (Exception)
+        {
+            opusVersion = "Unknown";
+        }
+        
+        Codec = Locales.Locales.Credits_Codec.Replace("{version}", opusVersion);
     }
 }

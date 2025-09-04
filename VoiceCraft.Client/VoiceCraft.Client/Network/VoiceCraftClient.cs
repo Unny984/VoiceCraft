@@ -6,6 +6,7 @@ using LiteNetLib;
 using LiteNetLib.Utils;
 using OpusSharp.Core;
 using OpusSharp.Core.Extensions;
+using VoiceCraft.Client.Audio;
 using VoiceCraft.Client.Audio.Effects;
 using VoiceCraft.Client.Network.Systems;
 using VoiceCraft.Client.Services;
@@ -35,7 +36,7 @@ public class VoiceCraftClient : VoiceCraftEntity, IDisposable
     private readonly byte[] _encodeBuffer = new byte[Constants.MaximumEncodedBytes];
     
     //Encoder
-    private readonly OpusEncoder _encoder;
+    private readonly IAudioCodec _encoder;
     
     //Networking
     private readonly NetManager _netManager;
@@ -61,7 +62,7 @@ public class VoiceCraftClient : VoiceCraftEntity, IDisposable
             UnconnectedMessagesEnabled = true
         };
 
-        _encoder = new OpusEncoder(Constants.SampleRate, Constants.Channels, OpusPredefinedValues.OPUS_APPLICATION_VOIP);
+        _encoder = AudioCodecFactory.CreateCodec(Constants.SampleRate, Constants.Channels, (int)OpusPredefinedValues.OPUS_APPLICATION_VOIP);
         _encoder.SetPacketLostPercent(50); //Expected packet loss, might make this change over time later.
         _encoder.SetBitRate(32000);
 

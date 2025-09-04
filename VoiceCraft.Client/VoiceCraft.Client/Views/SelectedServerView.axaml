@@ -18,7 +18,7 @@
                        FontSize="20"
                        FontWeight="Bold"
                        Text="{Binding SelectedServer.Name, FallbackValue='N.A'}"
-                       TextAlignment="Center" />
+                       TextAlignment="Left" />
             <Button Padding="10"
                     VerticalAlignment="Stretch"
                     Background="Transparent"

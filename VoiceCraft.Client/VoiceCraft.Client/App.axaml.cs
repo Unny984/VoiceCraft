@@ -109,7 +109,7 @@ public class App : Application
         ServiceCollection.AddSingleton<INotificationMessageManager, NotificationMessageManager>();
         ServiceCollection.AddSingleton<NotificationService>();
         ServiceCollection.AddSingleton<PermissionsService>(x => new PermissionsService(x.GetRequiredService<NotificationService>(),
-            y => (Permissions.BasePermission)x.GetRequiredService(y)));
+            y => (Permissions.BasePermission)(ServiceProvider?.GetService(y) ?? x.GetRequiredService(y))));
         ServiceCollection.AddSingleton<ThemesService>();
         ServiceCollection.AddSingleton<SettingsService>();
 

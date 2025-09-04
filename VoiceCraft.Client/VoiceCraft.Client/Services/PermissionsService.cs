@@ -2,13 +2,14 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Devices;
+using MauiPermissions = Microsoft.Maui.ApplicationModel.Permissions;
 
 namespace VoiceCraft.Client.Services;
 
-public class PermissionsService(NotificationService notificationService, Func<Type, Permissions.BasePermission> getPermission)
+public class PermissionsService(NotificationService notificationService, Func<Type, MauiPermissions.BasePermission> getPermission)
 {
     public async Task<PermissionStatus> CheckAndRequestPermission<TPermission>(string? rationalDescription = null)
-        where TPermission : Permissions.BasePermission, new()
+        where TPermission : MauiPermissions.BasePermission, new()
     {
         var permission = getPermission(typeof(TPermission));
         var status = await permission.CheckStatusAsync();

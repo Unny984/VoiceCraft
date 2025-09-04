@@ -4,6 +4,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.iOS;
 using Avalonia.Media;
+using Avalonia.Themes.Fluent;
 
 namespace VoiceCraft.Client.iOS;
 
