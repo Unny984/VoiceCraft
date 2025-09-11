@@ -63,7 +63,7 @@ public static class App
             //Server finished.
             AnsiConsole.Write(serverSetupTable);
             AnsiConsole.MarkupLine($"[bold green]{Locales.Locales.Startup_Success}[/]");
-
+            
             StartCommandTask();
             var startTime = DateTime.UtcNow;
             while (!Cts.IsCancellationRequested)
@@ -79,6 +79,7 @@ public static class App
                     if (delay > 0)
                         await Task.Delay((int)delay);
                     startTime = DateTime.UtcNow;
+                    //Console.WriteLine(delay);
                 }
                 catch (Exception ex)
                 {

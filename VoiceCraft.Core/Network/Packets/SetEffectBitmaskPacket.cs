@@ -2,15 +2,15 @@ using LiteNetLib.Utils;
 
 namespace VoiceCraft.Core.Network.Packets
 {
-    public class SetTalkBitmaskPacket : VoiceCraftPacket
+    public class SetEffectBitmaskPacket : VoiceCraftPacket
     {
-        public SetTalkBitmaskPacket(int id = 0, uint value = 0)
+        public SetEffectBitmaskPacket(int id = 0, uint value = 0)
         {
             Id = id;
             Value = value;
         }
 
-        public override PacketType PacketType => PacketType.SetTalkBitmask;
+        public override PacketType PacketType => PacketType.SetEffectBitmask;
 
         public int Id { get; private set; }
         public uint Value { get; private set; }

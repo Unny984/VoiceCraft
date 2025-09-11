@@ -11,23 +11,28 @@ namespace VoiceCraft.Core.Audio.Effects
         public int MaxRange { get; set; }
         public EffectType EffectType => EffectType.Proximity;
 
-        public ulong Bitmask { get; set; } = ulong.MaxValue;
-
-        public virtual void Process(VoiceCraftEntity from, VoiceCraftEntity to, Span<float> data, int count)
+        public virtual void Process(VoiceCraftEntity from, VoiceCraftEntity to, uint effectBitmask, Span<float> data,
+            int count)
         {
-            throw new NotSupportedException();
+            var bitmask = from.TalkBitmask & to.ListenBitmask & from.EffectBitmask & to.EffectBitmask;
+            if ((bitmask & effectBitmask) == 0) return; //Not enabled.
+
+            var range = MaxRange - MinRange;
+            if (range == 0) return; //Range is 0. Do not calculate division.
+            var distance = Vector3.Distance(from.Position, to.Position);
+            var factor = 1f - Math.Clamp((distance - MinRange) / range, 0f, 1f);
+
+            for (var i = 0; i < count; i++) data[i] = Math.Clamp(data[i] * factor, -1f, 1f);
         }
 
         public void Serialize(NetDataWriter writer)
         {
-            writer.Put(Bitmask);
             writer.Put(MinRange);
             writer.Put(MaxRange);
         }
 
         public void Deserialize(NetDataReader reader)
         {
-            Bitmask = reader.GetULong();
             MinRange = reader.GetInt();
             MaxRange = reader.GetInt();
         }
@@ -38,10 +43,10 @@ namespace VoiceCraft.Core.Audio.Effects
         }
 
 
-        public bool Visibility(VoiceCraftEntity from, VoiceCraftEntity to)
+        public bool Visibility(VoiceCraftEntity from, VoiceCraftEntity to, uint effectBitmask)
         {
-            var bitmask = from.TalkBitmask & to.ListenBitmask;
-            if ((bitmask & Bitmask) == 0) return true; //Proximity checking disabled.
+            var bitmask = from.TalkBitmask & to.ListenBitmask & from.EffectBitmask & to.EffectBitmask;
+            if ((bitmask & effectBitmask) == 0) return true; //Proximity checking disabled.
             var distance = Vector3.Distance(from.Position, to.Position);
             return distance <= MaxRange;
         }
