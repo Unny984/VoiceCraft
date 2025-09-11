@@ -169,5 +169,12 @@
         }
       }
     }
+  },
+  "AudioEffectSystem": {
+    "Exceptions": {
+      "AddEffect": "Failed to add effect!",
+      "RemoveEffect": "Failed to remove effect!",
+      "AvailableId": "Could not find an available id!"
+    }
   }
 }

@@ -22,8 +22,6 @@
         </PackageReference>
         <PackageReference Include="NAudio.WinForms"/>
         <PackageReference Include="NAudio.WinMM"/>
-        <PackageReference Include="SharpHook" />
-        <PackageReference Include="SpeexDSPSharp" />
     </ItemGroup>
 
     <ItemGroup>

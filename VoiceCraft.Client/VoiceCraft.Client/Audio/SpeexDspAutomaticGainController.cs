@@ -2,7 +2,7 @@ using System;
 using SpeexDSPSharp.Core;
 using VoiceCraft.Core.Interfaces;
 
-namespace VoiceCraft.Client.Android.Audio;
+namespace VoiceCraft.Client.Audio;
 
 public class SpeexDspAutomaticGainController : IAutomaticGainController
 {

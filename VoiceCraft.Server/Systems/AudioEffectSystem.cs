@@ -4,14 +4,15 @@ namespace VoiceCraft.Server.Systems;
 
 public class AudioEffectSystem : IResettable, IDisposable
 {
-    private readonly OrderedDictionary<uint, IAudioEffect> _audioEffects = new();
+    private readonly Dictionary<byte, IAudioEffect> _audioEffects = new();
 
-    public IEnumerable<KeyValuePair<uint, IAudioEffect>> Effects => _audioEffects;
+    public IEnumerable<KeyValuePair<byte, IAudioEffect>> Effects => _audioEffects;
 
     public void Dispose()
     {
         ClearEffects();
         OnEffectSet = null;
+        OnEffectRemoved = null;
         GC.SuppressFinalize(this);
     }
 
@@ -20,19 +21,29 @@ public class AudioEffectSystem : IResettable, IDisposable
         ClearEffects();
     }
 
-    public event Action<uint, IAudioEffect?>? OnEffectSet;
+    public event Action<byte, IAudioEffect>? OnEffectSet;
+    public event Action<byte, IAudioEffect>? OnEffectRemoved;
 
-    public void SetEffect(uint bitmask, IAudioEffect? effect)
+    public void AddEffect(IAudioEffect effect)
     {
-        if (effect == null && _audioEffects.Remove(bitmask, out var audioEffect))
-        {
-            audioEffect.Dispose();
-            OnEffectSet?.Invoke(bitmask, null);
-            return;
-        }
+        var id = GetLowestAvailableId();
+        if (_audioEffects.TryAdd(id, effect))
+            throw new InvalidOperationException(Locales.Locales.AudioEffectSystem_Exceptions_AddEffect);
+    }
 
-        if (effect == null || !_audioEffects.TryAdd(bitmask, effect)) return;
-        OnEffectSet?.Invoke(bitmask, effect);
+    public void SetEffect(IAudioEffect effect, byte index)
+    {
+        if (!_audioEffects.TryAdd(index, effect))
+            _audioEffects[index] = effect;
+        OnEffectSet?.Invoke(index, effect);
+    }
+
+    public void RemoveEffect(byte index)
+    {
+        if (!_audioEffects.Remove(index, out var effect))
+            throw new InvalidOperationException(Locales.Locales.AudioEffectSystem_Exceptions_RemoveEffect);
+        effect.Dispose();
+        OnEffectRemoved?.Invoke(index, effect);
     }
 
     public void ClearEffects()
@@ -42,7 +53,16 @@ public class AudioEffectSystem : IResettable, IDisposable
         foreach (var effect in effects)
         {
             effect.Value.Dispose();
-            OnEffectSet?.Invoke(effect.Key, null);
+            OnEffectRemoved?.Invoke(effect.Key, effect.Value);
         }
+    }
+
+    private byte GetLowestAvailableId()
+    {
+        for (var i = byte.MinValue; i < byte.MaxValue; i++)
+            if (!_audioEffects.ContainsKey(i))
+                return i;
+
+        throw new InvalidOperationException(Locales.Locales.AudioEffectSystem_Exceptions_AvailableId);
     }
 }
