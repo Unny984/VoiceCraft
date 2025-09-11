@@ -1,5 +1,6 @@
 using VoiceCraft.Core;
 using VoiceCraft.Core.Interfaces;
+using VoiceCraft.Server.Data;
 
 namespace VoiceCraft.Server.Systems;
 
@@ -7,11 +8,7 @@ public class VisibilitySystem(VoiceCraftWorld world, AudioEffectSystem audioEffe
 {
     public void Update()
     {
-        //There was a possible race condition here...
-        foreach (var entity in world.Entities)
-        {
-            UpdateVisibleNetworkEntities(entity);
-        }
+        Parallel.ForEach(world.Entities, UpdateVisibleNetworkEntities);
     }
 
     private void UpdateVisibleNetworkEntities(VoiceCraftEntity entity)
@@ -36,11 +33,11 @@ public class VisibilitySystem(VoiceCraftWorld world, AudioEffectSystem audioEffe
 
     private bool EntityVisibility(VoiceCraftEntity from, VoiceCraftNetworkEntity to)
     {
-        if ((from.TalkBitmask & to.ListenBitmask) == 0) return false;
+        if (!from.VisibleTo(to)) return false;
         foreach (var effect in audioEffectSystem.Effects)
         {
             if (effect.Value is not IVisible visibleEffect) continue;
-            if (!visibleEffect.Visibility(from, to, effect.Key)) return false;
+            if (!visibleEffect.Visibility(from, to)) return false;
         }
 
         return true;

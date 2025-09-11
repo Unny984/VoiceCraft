@@ -9,13 +9,18 @@ namespace VoiceCraft.Core
         Client
     }
 
+    public enum EntityType : byte
+    {
+        Unknown,
+        Server,
+        Network
+    }
+
     public enum PacketType : byte
     {
         Unknown,
         Info,
         Login,
-        Logout,
-        SetId,
         SetEffect,
         
         //Client Entity Stuff
@@ -25,7 +30,6 @@ namespace VoiceCraft.Core
 
         //Entity stuff
         EntityCreated,
-        NetworkEntityCreated,
         EntityDestroyed,
         SetVisibility,
         SetName,
@@ -33,7 +37,6 @@ namespace VoiceCraft.Core
         SetDeafen,
         SetTalkBitmask,
         SetListenBitmask,
-        SetEffectBitmask,
         SetPosition,
         SetRotation
     }
@@ -69,14 +72,32 @@ namespace VoiceCraft.Core
 
     #endregion
 
+    #region Properties
+
+    public enum PropertyKey : ushort
+    {
+        Unknown,
+        ProximityEffectMinRange,
+        ProximityEffectMaxRange
+    }
+
+    public enum PropertyType : byte
+    {
+        Null,
+        Byte,
+        Int,
+        UInt,
+        Float
+    }
+
+    #endregion
+
     #region Audio
 
     public enum EffectType : byte
     {
         Unknown,
-        Visibility,
-        Proximity,
-        Directional
+        Proximity
     }
 
     public enum AudioFormat

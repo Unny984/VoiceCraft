@@ -6,7 +6,5 @@
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="VoiceCraft.Client.Views.Error.ErrorView"
              x:DataType="vm:ErrorViewModel">
-    <ScrollViewer>
-        <TextBlock TextAlignment="Center" VerticalAlignment="Center" Text="{Binding ErrorMessage}" TextWrapping="Wrap" />
-    </ScrollViewer>
+    <TextBlock TextAlignment="Center" VerticalAlignment="Center" Text="{Binding ErrorMessage}" TextWrapping="Wrap" />
 </UserControl>
