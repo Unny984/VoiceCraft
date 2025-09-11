@@ -2,11 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using LiteNetLib.Utils;
 using VoiceCraft.Core.Interfaces;
 
 namespace VoiceCraft.Core
 {
-    public class VoiceCraftEntity : IResettable
+    public class VoiceCraftEntity : INetSerializable, IResettable
     {
         private readonly Dictionary<int, VoiceCraftEntity> _visibleEntities = new Dictionary<int, VoiceCraftEntity>();
 
@@ -16,11 +17,10 @@ namespace VoiceCraft.Core
         private float _loudness;
         private string _worldId = string.Empty;
         private string _name = "New Entity";
-        private uint _listenBitmask = uint.MaxValue;
-        private uint _talkBitmask = uint.MaxValue;
-        private uint _effectBitmask = uint.MaxValue;
+        private ulong _listenBitmask = ulong.MaxValue;
+        private ulong _talkBitmask = ulong.MaxValue;
         private Vector3 _position;
-        private Vector2 _rotation;
+        private Quaternion _rotation;
 
         //Modifiers for modifying data for later?
 
@@ -33,10 +33,29 @@ namespace VoiceCraft.Core
         //Properties
         public virtual int Id { get; }
         public VoiceCraftWorld World { get; }
+        public virtual EntityType EntityType => EntityType.Server;
         public float Loudness => IsSpeaking ? _loudness : 0f;
         public bool IsSpeaking => (DateTime.UtcNow - LastSpoke).TotalMilliseconds < Constants.SilenceThresholdMs;
         public DateTime LastSpoke { get; private set; } = DateTime.MinValue;
         public bool Destroyed { get; private set; }
+
+        public virtual void Serialize(NetDataWriter writer)
+        {
+            writer.Put(Name, Constants.MaxStringLength);
+            writer.Put(Muted);
+            writer.Put(Deafened);
+        }
+
+        public virtual void Deserialize(NetDataReader reader)
+        {
+            var name = reader.GetString(Constants.MaxStringLength);
+            var muted = reader.GetBool();
+            var deafened = reader.GetBool();
+
+            Name = name;
+            Muted = muted;
+            Deafened = deafened;
+        }
 
         public virtual void Reset()
         {
@@ -48,11 +67,10 @@ namespace VoiceCraft.Core
         public event Action<string, VoiceCraftEntity>? OnNameUpdated;
         public event Action<bool, VoiceCraftEntity>? OnMuteUpdated;
         public event Action<bool, VoiceCraftEntity>? OnDeafenUpdated;
-        public event Action<uint, VoiceCraftEntity>? OnTalkBitmaskUpdated;
-        public event Action<uint, VoiceCraftEntity>? OnListenBitmaskUpdated;
-        public event Action<uint, VoiceCraftEntity>? OnEffectBitmaskUpdated;
+        public event Action<ulong, VoiceCraftEntity>? OnTalkBitmaskUpdated;
+        public event Action<ulong, VoiceCraftEntity>? OnListenBitmaskUpdated;
         public event Action<Vector3, VoiceCraftEntity>? OnPositionUpdated;
-        public event Action<Vector2, VoiceCraftEntity>? OnRotationUpdated;
+        public event Action<Quaternion, VoiceCraftEntity>? OnRotationUpdated;
         public event Action<VoiceCraftEntity, VoiceCraftEntity>? OnVisibleEntityAdded;
         public event Action<VoiceCraftEntity, VoiceCraftEntity>? OnVisibleEntityRemoved;
         public event Action<byte[], uint, float, VoiceCraftEntity>? OnAudioReceived;
@@ -85,6 +103,13 @@ namespace VoiceCraft.Core
             OnAudioReceived?.Invoke(buffer, timestamp, frameLoudness, this);
         }
 
+        public bool VisibleTo(VoiceCraftEntity entity)
+        {
+            if (string.IsNullOrWhiteSpace(WorldId) || string.IsNullOrWhiteSpace(entity.WorldId) || WorldId != entity.WorldId) return false;
+            var bitmask = TalkBitmask & entity.ListenBitmask;
+            return bitmask != 0;
+        }
+
         public virtual void Destroy()
         {
             if (Destroyed) return;
@@ -98,7 +123,6 @@ namespace VoiceCraft.Core
             OnDeafenUpdated = null;
             OnTalkBitmaskUpdated = null;
             OnListenBitmaskUpdated = null;
-            OnEffectBitmaskUpdated = null;
             OnPositionUpdated = null;
             OnRotationUpdated = null;
             OnVisibleEntityAdded = null;
@@ -157,7 +181,7 @@ namespace VoiceCraft.Core
             }
         }
 
-        public uint TalkBitmask
+        public ulong TalkBitmask
         {
             get => _talkBitmask;
             set
@@ -168,7 +192,7 @@ namespace VoiceCraft.Core
             }
         }
 
-        public uint ListenBitmask
+        public ulong ListenBitmask
         {
             get => _listenBitmask;
             set
@@ -176,17 +200,6 @@ namespace VoiceCraft.Core
                 if (_listenBitmask == value) return;
                 _listenBitmask = value;
                 OnTalkBitmaskUpdated?.Invoke(_listenBitmask, this);
-            }
-        }
-
-        public uint EffectBitmask
-        {
-            get => _effectBitmask;
-            set
-            {
-                if (_effectBitmask == value) return;
-                _effectBitmask = value;
-                OnEffectBitmaskUpdated?.Invoke(_effectBitmask, this);
             }
         }
 
@@ -201,7 +214,7 @@ namespace VoiceCraft.Core
             }
         }
 
-        public Vector2 Rotation
+        public Quaternion Rotation
         {
             get => _rotation;
             set

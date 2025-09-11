@@ -1,6 +1,6 @@
 using System.CommandLine;
 using Spectre.Console;
-using VoiceCraft.Core;
+using VoiceCraft.Server.Data;
 using VoiceCraft.Server.Servers;
 
 namespace VoiceCraft.Server.Commands;
@@ -48,7 +48,7 @@ public class ListCommand : Command
                         entity.Id.ToString(),
                         entity.Name,
                         $"[red]{entity.Position.X}[/], [green]{entity.Position.Y}[/], [blue]{entity.Position.Z}[/]",
-                        $"[red]{entity.Rotation.X}[/], [green]{entity.Rotation.Y}[/]",
+                        $"[red]{entity.Rotation.X}[/], [green]{entity.Rotation.Y}[/], [blue]{entity.Rotation.Z}[/], [yellow]{entity.Rotation.W}[/]",
                         entity.WorldId);
                 }
 

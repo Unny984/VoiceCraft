@@ -9,18 +9,19 @@ namespace VoiceCraft.Client.Network.Systems;
 
 public class AudioSystem(VoiceCraftClient client, VoiceCraftWorld world) : IDisposable
 {
-    private readonly OrderedDictionary<uint, IAudioEffect> _audioEffects = new();
-    private float[] _monoBuffer = [];
+    private readonly Dictionary<byte, IAudioEffect> _audioEffects = new();
     private float[] _effectBuffer = [];
-    private float[] _mixingBuffer = [];
     private short[] _entityBuffer = [];
 
-    public IEnumerable<KeyValuePair<uint, IAudioEffect>> Effects
+    public IEnumerable<KeyValuePair<byte, IAudioEffect>> Effects
     {
         get
         {
             lock (_audioEffects)
-                return _audioEffects;
+            {
+                var audioEffects = _audioEffects.ToArray();
+                return audioEffects;
+            }
         }
     }
 
@@ -28,50 +29,31 @@ public class AudioSystem(VoiceCraftClient client, VoiceCraftWorld world) : IDisp
     {
         ClearEffects();
         OnEffectSet = null;
+        OnEffectRemoved = null;
         GC.SuppressFinalize(this);
     }
 
-    public event Action<uint, IAudioEffect?>? OnEffectSet;
+    public event Action<byte, IAudioEffect>? OnEffectSet;
+    public event Action<byte, IAudioEffect>? OnEffectRemoved;
 
     public int Read(Span<short> buffer, int count)
     {
-        //Mono Buffers
-        var monoCount = count / 2;
-        if(_entityBuffer.Length < monoCount)
-            _entityBuffer = new short[monoCount];
-        if (_monoBuffer.Length < monoCount)
-            _monoBuffer = new float[monoCount];
-        
-        //Stereo Buffers
         if (_effectBuffer.Length < count)
             _effectBuffer = new float[count];
-        if (_mixingBuffer.Length < count)
-            _mixingBuffer = new float[count];
-        
-        _entityBuffer.AsSpan().Clear();
-        _monoBuffer.AsSpan().Clear();
-        _mixingBuffer.AsSpan().Clear();
-        _effectBuffer.AsSpan().Clear();
-        
+        if(_entityBuffer.Length < count)
+            _entityBuffer = new short[count];
+
         var read = 0;
         foreach (var entity in world.Entities.OfType<VoiceCraftClientEntity>().Where(x => x.IsVisible))
         {
-            try
-            {
-                var entityRead = entity.Read(_entityBuffer, monoCount);
-                if (entityRead <= 0) continue;
-                entityRead = Pcm16ToFloat(_entityBuffer, entityRead, _monoBuffer); //To IEEEFloat
-                entityRead = PcmFloatMonoToStereo(_monoBuffer, entityRead, _effectBuffer); //To Stereo
-                entityRead = ProcessEffects(_effectBuffer, entityRead, entity); //Process Effects
-                entityRead = AdjustVolume(_effectBuffer, entityRead, entity.Volume); //Adjust the volume of the entity.
-                entityRead = PcmFloatMix(_effectBuffer, entityRead, _mixingBuffer); //Mix IEEFloat audio.
-                entityRead = PcmFloatTo16(_mixingBuffer, entityRead, buffer); //To PCM16
-                read = Math.Max(read, entityRead);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex);
-            }
+            var entityRead = entity.Read(_entityBuffer, count);
+            if(entityRead <= 0) continue;
+            Pcm16ToFloat(_entityBuffer, entityRead, _effectBuffer); //To IEEEFloat
+            ProcessEffects(_effectBuffer, entityRead, entity); //Process Effects
+            AdjustVolume(_effectBuffer, entityRead, entity.Volume); //Adjust the volume of the entity.
+            PcmFloatTo16(_effectBuffer, entityRead, _entityBuffer); //To PCM16
+            Pcm16Mix(_entityBuffer, entityRead, buffer); //Mix 16bit audio.
+            read = Math.Max(read, entityRead);
         }
         
         //Full read
@@ -80,98 +62,104 @@ public class AudioSystem(VoiceCraftClient client, VoiceCraftWorld world) : IDisp
         return count;
     }
 
-    public bool TryGetEffect(uint bitmask, [NotNullWhen(true)] out IAudioEffect? effect)
+    public void AddEffect(IAudioEffect effect)
     {
         lock(_audioEffects)
         {
-            return _audioEffects.TryGetValue(bitmask, out effect);
+            var id = GetLowestAvailableId();
+            if (_audioEffects.TryAdd(id, effect))
+                throw new InvalidOperationException("Failed to add effect!");
         }
     }
-    
-    public void SetEffect(uint bitmask, IAudioEffect? effect)
-    {
-        lock (_audioEffects)
-        {
-            if (effect == null && _audioEffects.Remove(bitmask, out var audioEffect))
-            {
-                audioEffect.Dispose();
-                OnEffectSet?.Invoke(bitmask, null);
-                return;
-            }
 
-            if (effect == null || !_audioEffects.TryAdd(bitmask, effect)) return;
-            OnEffectSet?.Invoke(bitmask, effect);
+    public void SetEffect(byte index, IAudioEffect effect)
+    {
+        lock(_audioEffects)
+        {
+            if (!_audioEffects.TryAdd(index, effect))
+                _audioEffects[index] = effect;
+            OnEffectSet?.Invoke(index, effect);
+        }
+    }
+
+    public bool TryGetEffect(byte index, [NotNullWhen(true)] out IAudioEffect? effect)
+    {
+        lock(_audioEffects)
+        {
+            effect = _audioEffects.GetValueOrDefault(index);
+            return effect != null;
+        }
+    }
+
+    public void RemoveEffect(byte index)
+    {
+        lock(_audioEffects)
+        {
+            if (!_audioEffects.Remove(index, out var effect))
+                throw new InvalidOperationException("Failed to remove effect!");
+            effect.Dispose();
+            OnEffectRemoved?.Invoke(index, effect);
         }
     }
 
     public void ClearEffects()
     {
-        lock (_audioEffects)
+        lock(_audioEffects)
         {
             var effects = _audioEffects.ToArray(); //Copy the effects.
             _audioEffects.Clear();
             foreach (var effect in effects)
             {
                 effect.Value.Dispose();
-                OnEffectSet?.Invoke(effect.Key, null);
+                OnEffectRemoved?.Invoke(effect.Key, effect.Value);
             }
         }
     }
 
-    private int ProcessEffects(Span<float> buffer, int count, VoiceCraftClientEntity entity)
+    private byte GetLowestAvailableId()
+    {
+        for (var i = byte.MinValue; i < byte.MaxValue; i++)
+            if (!_audioEffects.ContainsKey(i))
+                return i;
+
+        throw new InvalidOperationException("Could not find an available id!");
+    }
+
+    private void ProcessEffects(Span<float> buffer, int count, VoiceCraftClientEntity entity)
     {
         lock(_audioEffects)
         {
             foreach (var effect in _audioEffects)
-                effect.Value.Process(entity, client, effect.Key, buffer, count);
+                effect.Value.Process(entity, client, buffer, count);
         }
-
-        return count;
     }
 
-    private static int AdjustVolume(Span<float> buffer, int count, float volume)
+    private static void AdjustVolume(Span<float> buffer, int count, float volume)
     {
         for (var i = 0; i < count; i++)
         {
             buffer[i] *= volume;
         }
-        return count;
     }
 
-    private static int Pcm16ToFloat(Span<short> buffer, int count, Span<float> destBuffer)
+    private static void Pcm16ToFloat(Span<short> buffer, int count, Span<float> destBuffer)
     {
         for (var i = 0; i < count; i++)
-            destBuffer[i] = Math.Clamp(buffer[i] / (short.MaxValue + 1f), -1f, 1f);
-        return count;
+            destBuffer[i] = buffer[i] / (short.MaxValue + 1f);
     }
 
-    private static int PcmFloatMonoToStereo(Span<float> buffer, int count, Span<float> destBuffer)
-    {
-        var destOffset = 0;
-        for (var i = 0; i < count; i++)
-        {
-            var sampleVal = buffer[i];
-            destBuffer[destOffset++] = sampleVal;
-            destBuffer[destOffset++] = sampleVal;
-        }
-        return count * 2;
-    }
-
-    private static int PcmFloatTo16(Span<float> floatBuffer, int count, Span<short> destBuffer)
+    private static void PcmFloatTo16(Span<float> floatBuffer, int count, Span<short> destBuffer)
     {
         for (var i = 0; i < count; i++)
-            destBuffer[i] = Math.Clamp((short)(floatBuffer[i] * short.MaxValue), short.MinValue, short.MaxValue);
-        
-        return count;
+            destBuffer[i] = (short)(floatBuffer[i] * short.MaxValue);
     }
     
-    private static int PcmFloatMix(Span<float> srcBuffer, int count, Span<float> dstBuffer)
+    private static void Pcm16Mix(Span<short> srcBuffer, int count, Span<short> dstBuffer)
     {
         for (var i = 0; i < count; i++)
         {
-            dstBuffer[i] = srcBuffer[i] + dstBuffer[i];
+            var mixed = srcBuffer[i] + dstBuffer[i];
+            dstBuffer[i] = (short)Math.Clamp(mixed, short.MinValue, short.MaxValue);
         }
-        
-        return count;
     }
 }
